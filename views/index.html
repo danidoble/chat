@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full w-full">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat simple con websockets</title>
+    <link rel="stylesheet" href="/public/css/app.css">
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</head>
+<body class="h-full w-full bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-50" x-init="{}">
+<audio id="sound" class="hidden">
+    <source src="/public/sound/noti.mp3" type="audio/mp3">
+</audio>
+<div class="hidden h-full w-full grid place-items-center" id="container-username">
+    <div class="w-full mx-auto max-w-md ring-offset-2 ring-offset-transparent ring-2 ring-gray-300 dark:ring-gray-700 rounded-2xl p-6">
+        <h1 class="text-xl lg:text-3xl text-center mb-3">Chat de danidoble</h1>
+        <form action="#" method="post" id="form-username" enctype="multipart/form-data">
+            <div>
+                <label for="username" class="block text-base font-medium text-gray-700 dark:text-gray-200">
+                    Nombre de usuario
+                </label>
+                <div class="mt-1">
+                    <input type="text" minlength="3" maxlength="150" name="username" id="username"
+                           class="dark:text-gray-900 dark:placeholder-gray-700 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                           placeholder="Nombre de usuario">
+                </div>
+            </div>
+
+            <div class="my-4">
+                <button type="submit"
+                        class="w-full justify-center inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500">
+                    Actualizar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="w-full h-full block md:flex">
+    <div class="hidden h-full w-full max-w-sm grid grid-cols-1" id="container-list-users">
+        <div class="w-full mx-auto max-w-md ring-offset-2 ring-offset-transparent p-6">
+            <h1 class="text-xl lg:text-2xl text-center mb-3">Participantes</h1>
+            <ul id="list-current-users">
+                <li class="w-full max-h-12 overflow-hidden text-ellipsis break-all inline-flex">
+                    <svg class="mr-1.5 mt-2 h-2 w-2 text-green-600" fill="currentColor" viewBox="0 0 8 8">
+                        <circle cx="4" cy="4" r="3" />
+                    </svg>
+                    Ejemplo
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="w-full h-full" id="container-chat">
+        <div class="flex flex-col h-full divide-y divide-gray-300 dark:divide-gray-700">
+            <div class="h-16 w-full flex justify-end px-4 py-2">
+                <div class="mx-2 h-full">
+                    <div class="grid place-items-center w-12 h-12 rounded-full ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-pink-400 dark:hover:ring-pink-600 cursor-pointer"
+                         x-on:click="showListUsers()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 p-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="mx-2 h-full">
+                    <div class="grid place-items-center w-12 h-12 rounded-full ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-pink-400 dark:hover:ring-pink-600 cursor-pointer"
+                         x-on:click="showUsername()">
+                        <svg class="w-10 h-10 p-1" xmlns="http://www.w3.org/2000/svg" version="1.1"
+                             xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.com/svgjs" width="512"
+                             height="512" x="0" y="0" viewBox="0 0 48 48" style="enable-background:new 0 0 512 512"
+                             xml:space="preserve"><g><path xmlns="http://www.w3.org/2000/svg" d="m40.53 36.07c-.64.32-1.28.65-1.91 1q-2.49 1.35-4.89 2.88-.57.34-1.14.72a3.65 3.65 0 0 0 -.42.34h-25.17v-1.01a17 17 0 0 1 13.62-16.66 9 9 0 1 1 6.76 0 17 17 0 0 1 13.15 12.73z" fill="#505078" data-original="#505078"></path><path
+                                xmlns="http://www.w3.org/2000/svg"
+                                d="m35 27.09a11.52 11.52 0 0 0 -9.73 13.91h6.9c.13-.12 6.45-3.94 6.45-3.94.63-.34 1.27-.67 1.91-1a17.06 17.06 0 0 0 -5.53-8.97z"
+                                fill="#323250" data-original="#323250"></path><circle xmlns="http://www.w3.org/2000/svg"
+                                                                                      cx="35" cy="35" fill="#006400" r="6"
+                                                                                      data-original="#006400"></circle><path
+                                xmlns="http://www.w3.org/2000/svg"
+                                d="m35 27a8 8 0 1 0 8 8 8 8 0 0 0 -8-8zm4.71 6.71-4 4a1 1 0 0 1 -1.42 0l-3-3a1 1 0 1 1 1.42-1.42l2.29 2.3 3.29-3.3a1 1 0 0 1 1.42 1.42z"
+                                fill="#64d885" data-original="#64d885"></path></g></svg>
+                    </div>
+                </div>
+
+            </div>
+            <div class="flex-1 bg-gray-100 dark:bg-gray-800 overflow-x-hidden overflow-y-auto max-h-[calc(100vh - 164px)]">
+                <div class="max-w-7xl mx-auto w-full px-3" id="messages">
+                    <div class="hidden max-h-80 bg-red-600 hover:bg-red-700 w-full max-w-[90%] md:max-w-lg lg:max-w-xl xl:max-w-2xl p-4 m-3 rounded-2xl bg-stone-200 dark:bg-gray-700 others">
+                        <div class="w-full mb-2 text-xs"></div>
+                        <div class="message"></div>
+                        <div class="w-full mt-2 text-xs text-right"></div>
+                    </div>
+                    <div class="hidden w-full ml-auto max-w-[90%] md:max-w-lg lg:max-w-xl xl:max-w-2xl p-4 m-3 rounded-2xl bg-sky-200 dark:bg-sky-800 own">
+                        <div class="w-full mb-2 text-xs"></div>
+                        <div class="message"></div>
+                        <div class="w-full mt-2 text-xs text-right"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full mx-auto">
+                <div class="flex items-start space-x-4">
+                    <div class="min-w-0 flex-1">
+                        <form action="#" class="relative" id="form-message">
+                            <div class="border border-transparent rounded-none shadow-none overflow-hidden focus-within:border-transparent">
+                                <label for="comment" class="sr-only">Escribe tu mensaje</label>
+                                <div class="inline-flex w-full">
+                                    <div class="w-10 h-full grid place-items-center">
+                                        <button type="button" x-on:click="document.getElementById('file').click()"
+                                                class="w-10 h-full pt-4 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-500">
+                                            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
+                                                 fill="currentColor" aria-hidden="true">
+                                                <path fill-rule="evenodd"
+                                                      d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z"
+                                                      clip-rule="evenodd"/>
+                                            </svg>
+                                            <span class="sr-only">Agregar imagen</span>
+                                        </button>
+                                    </div>
+                                    <input type="file" name="file" id="file" style="max-width: 100px"
+                                           class="hidden dark:text-gray-900 dark:placeholder-gray-700 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                                           accept="image/*">
+                                    <textarea name="comment" id="comment" rows="1"
+                                              class="block flex-1 break-all h-auto max-h-32 w-full py-3 border-0 resize-none focus:ring-0 text-lg text-gray-900 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 font-emoji"
+                                              placeholder="Escribe tu mensaje..."
+                                              oninput='this.style.height = "";this.style.height = this.scrollHeight + "px"'
+                                    ></textarea>
+                                    <button type="submit"
+                                            class="inline-flex font-sans md:hidden items-center px-4 py-2 border border-transparent text-sm font-medium rounded-none shadow-none text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none">
+                                        Enviar
+                                    </button>
+                                </div>
+                                <div class="py-2" aria-hidden="true">
+                                    <div class="py-px">
+                                        <div class="h-9"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="absolute bg-gray-200 dark:bg-gray-700 bottom-0 inset-x-0 pl-3 pr-2 py-2 flex justify-between text-gray-900 font-emoji">
+                                <div class="flex items-center space-x-5 w-full overflow-x-auto max-w-[60%]">
+                                    <div class="absolute z-10 flex items-center gap-x-2">
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-1" class="sr-only">
+                                                    Agregar emoji
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-0 md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                😀
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:ml-1 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;😀&quot;,&quot;😃&quot;,&quot;😄&quot;,&quot;😁&quot;,&quot;😆&quot;,&quot;😅&quot;,&quot;😂&quot;,&quot;🤣&quot;,&quot;😭&quot;,&quot;😉&quot;,&quot;😗&quot;,&quot;😙&quot;,&quot;😚&quot;,&quot;😘&quot;,&quot;🥰&quot;,&quot;😍&quot;,&quot;🤩&quot;,&quot;🥳&quot;,&quot;🙃&quot;,&quot;🙂&quot;,&quot;🥲&quot;,&quot;🥹&quot;,&quot;😋&quot;,&quot;😛&quot;,&quot;😝&quot;,&quot;😜&quot;,&quot;🤪&quot;,&quot;😇&quot;,&quot;😊&quot;,&quot;☺️&quot;,&quot;😏&quot;,&quot;😌&quot;,&quot;😔&quot;,&quot;😑&quot;,&quot;😐&quot;,&quot;😶&quot;,&quot;🫡&quot;,&quot;🤔&quot;,&quot;🤫&quot;,&quot;🫢&quot;,&quot;🤭&quot;,&quot;🥱&quot;,&quot;🤗&quot;,&quot;🫣&quot;,&quot;😱&quot;,&quot;🤨&quot;,&quot;🧐&quot;,&quot;😒&quot;,&quot;🙄&quot;,&quot;😮‍💨&quot;,&quot;😤&quot;,&quot;😠&quot;,&quot;😡&quot;,&quot;🤬&quot;,&quot;🥺&quot;,&quot;😟&quot;,&quot;😥&quot;,&quot;😢&quot;,&quot;☹️&quot;,&quot;🙁&quot;,&quot;🫤&quot;,&quot;😕&quot;,&quot;🤐&quot;,&quot;😰&quot;,&quot;😨&quot;,&quot;😧&quot;,&quot;😦&quot;,&quot;😮&quot;,&quot;😯&quot;,&quot;😲&quot;,&quot;😳&quot;,&quot;🤯&quot;,&quot;😬&quot;,&quot;😓&quot;,&quot;😞&quot;,&quot;😖&quot;,&quot;😣&quot;,&quot;😩&quot;,&quot;😫&quot;,&quot;😵&quot;,&quot;😵‍💫&quot;,&quot;🫥&quot;,&quot;😴&quot;,&quot;😪&quot;,&quot;🤤&quot;,&quot;🌛&quot;,&quot;🌜&quot;,&quot;🌚&quot;,&quot;🌝&quot;,&quot;🌞&quot;,&quot;🫠&quot;,&quot;😶‍🌫️&quot;,&quot;🥴&quot;,&quot;🥵&quot;,&quot;🥶&quot;,&quot;🤢&quot;,&quot;🤮&quot;,&quot;🤧&quot;,&quot;🤒&quot;,&quot;🤕&quot;,&quot;😷&quot;,&quot;🤠&quot;,&quot;🤑&quot;,&quot;😎&quot;,&quot;🤓&quot;,&quot;🥸&quot;,&quot;🤥&quot;,&quot;🤡&quot;,&quot;👻&quot;,&quot;💩&quot;,&quot;👽&quot;,&quot;🤖&quot;,&quot;🎃&quot;,&quot;😈&quot;,&quot;👿&quot;,&quot;👹&quot;,&quot;👺&quot;,&quot;🔥&quot;,&quot;💫&quot;,&quot;⭐&quot;,&quot;🌟&quot;,&quot;✨&quot;,&quot;💥&quot;,&quot;💯&quot;,&quot;💢&quot;,&quot;💨&quot;,&quot;💦&quot;,&quot;🫧&quot;,&quot;💤&quot;,&quot;🕳️&quot;,&quot;🎉&quot;,&quot;🎊&quot;,&quot;🙈&quot;,&quot;🙉&quot;,&quot;🙊&quot;,&quot;😺&quot;,&quot;😸&quot;,&quot;😹&quot;,&quot;😻&quot;,&quot;😼&quot;,&quot;😽&quot;,&quot;🙀&quot;,&quot;😿&quot;,&quot;😾&quot;,&quot;❤️&quot;,&quot;🧡&quot;,&quot;💛&quot;,&quot;💚&quot;,&quot;💙&quot;,&quot;💜&quot;,&quot;🤎&quot;,&quot;🖤&quot;,&quot;🤍&quot;,&quot;♥️&quot;,&quot;💘&quot;,&quot;💝&quot;,&quot;💖&quot;,&quot;💗&quot;,&quot;💓&quot;,&quot;💞&quot;,&quot;💕&quot;,&quot;💌&quot;,&quot;💟&quot;,&quot;❣️&quot;,&quot;❤️‍🩹&quot;,&quot;💔&quot;,&quot;❤️‍🔥&quot;,&quot;💋&quot;,&quot;🫂&quot;,&quot;👥&quot;,&quot;👤&quot;,&quot;🗣️&quot;,&quot;👣&quot;,&quot;🧠&quot;,&quot;🫀&quot;,&quot;🫁&quot;,&quot;🩸&quot;,&quot;🦠&quot;,&quot;🦷&quot;,&quot;🦴&quot;,&quot;☠️&quot;,&quot;💀&quot;,&quot;👀&quot;,&quot;👁️&quot;,&quot;👄&quot;,&quot;🫦&quot;,&quot;👅&quot;,&quot;👃&quot;,&quot;👂&quot;,&quot;🦻&quot;,&quot;🦶&quot;,&quot;🦵&quot;,&quot;🦿&quot;,&quot;🦾&quot;,&quot;💪&quot;,&quot;👍&quot;,&quot;👎&quot;,&quot;👏&quot;,&quot;🫶&quot;,&quot;🙌&quot;,&quot;👐&quot;,&quot;🤲&quot;,&quot;🤝&quot;,&quot;🤜&quot;,&quot;🤛&quot;,&quot;✊&quot;,&quot;👊&quot;,&quot;🫳&quot;,&quot;🫴&quot;,&quot;🫱&quot;,&quot;🫲&quot;,&quot;🤚&quot;,&quot;👋&quot;,&quot;🖐️&quot;,&quot;✋&quot;,&quot;🖖&quot;,&quot;🤟&quot;,&quot;🤘&quot;,&quot;✌️&quot;,&quot;🤞&quot;,&quot;🫰&quot;,&quot;🤙&quot;,&quot;🤌&quot;,&quot;🤏&quot;,&quot;👌&quot;,&quot;🖕&quot;,&quot;☝️&quot;,&quot;👆&quot;,&quot;👇&quot;,&quot;👉&quot;,&quot;👈&quot;,&quot;🫵&quot;,&quot;✍️&quot;,&quot;🤳&quot;,&quot;🙏&quot;,&quot;💅&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-2" class="sr-only">
+                                                    Personas
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[1.7rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🙋
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;🙇&quot;,&quot;🙋&quot;,&quot;💁&quot;,&quot;🙆&quot;,&quot;🙅&quot;,&quot;🤷&quot;,&quot;🤦&quot;,&quot;🙍&quot;,&quot;🙎&quot;,&quot;🧏&quot;,&quot;💆&quot;,&quot;💇&quot;,&quot;🧖&quot;,&quot;🛀&quot;,&quot;🛌&quot;,&quot;🧘&quot;,&quot;🧑‍🦯&quot;,&quot;🧑‍🦼&quot;,&quot;🧑‍🦽&quot;,&quot;🧎&quot;,&quot;🧍&quot;,&quot;🚶&quot;,&quot;🏃&quot;,&quot;🤸&quot;,&quot;🏋️&quot;,&quot;⛹️&quot;,&quot;🤾&quot;,&quot;🚴&quot;,&quot;🚵&quot;,&quot;🧗&quot;,&quot;🤼&quot;,&quot;🤹&quot;,&quot;🏌️&quot;,&quot;🏇&quot;,&quot;🤺&quot;,&quot;⛷️&quot;,&quot;🏂&quot;,&quot;🪂&quot;,&quot;🏄&quot;,&quot;🚣&quot;,&quot;🏊&quot;,&quot;🤽&quot;,&quot;🧜&quot;,&quot;🧚&quot;,&quot;🧞&quot;,&quot;🧝&quot;,&quot;🧙&quot;,&quot;🧛&quot;,&quot;🧟&quot;,&quot;🧌&quot;,&quot;🦸&quot;,&quot;🦹&quot;,&quot;🥷&quot;,&quot;🧑‍🎄&quot;,&quot;👼&quot;,&quot;💂&quot;,&quot;🫅&quot;,&quot;🤵&quot;,&quot;👰&quot;,&quot;🧑‍🚀&quot;,&quot;👷&quot;,&quot;👮&quot;,&quot;🕵️&quot;,&quot;🧑‍✈️&quot;,&quot;🧑‍🔬&quot;,&quot;🧑‍⚕️&quot;,&quot;🧑‍🔧&quot;,&quot;🧑‍🏭&quot;,&quot;🧑‍🚒&quot;,&quot;🧑‍🌾&quot;,&quot;🧑‍🏫&quot;,&quot;🧑‍🎓&quot;,&quot;🧑‍💼&quot;,&quot;🧑‍⚖️&quot;,&quot;🧑‍💻&quot;,&quot;🧑‍🎤&quot;,&quot;🧑‍🎨&quot;,&quot;🧑‍🍳&quot;,&quot;👳&quot;,&quot;🧕&quot;,&quot;👲&quot;,&quot;👶&quot;,&quot;🧒&quot;,&quot;🧑&quot;,&quot;🧓&quot;,&quot;🧑‍🦳&quot;,&quot;🧑‍🦰&quot;,&quot;👱&quot;,&quot;🧑‍🦱&quot;,&quot;🧑‍🦲&quot;,&quot;🧔&quot;,&quot;🕴️&quot;,&quot;💃&quot;,&quot;🕺&quot;,&quot;👯&quot;,&quot;🧑‍🤝‍🧑&quot;,&quot;👭&quot;,&quot;👬&quot;,&quot;👫&quot;,&quot;💏&quot;,&quot;👩‍❤️‍💋‍👨&quot;,&quot;👨‍❤️‍💋‍👨&quot;,&quot;👩‍❤️‍💋‍👩&quot;,&quot;💑&quot;,&quot;👩‍❤️‍👨&quot;,&quot;👨‍❤️‍👨&quot;,&quot;👩‍❤️‍👩&quot;,&quot;🫄&quot;,&quot;🤱&quot;,&quot;🧑‍🍼&quot;,&quot;👪&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-3" class="sr-only">
+                                                    Naturaleza
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[3.2rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                💐
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;💐&quot;,&quot;🌹&quot;,&quot;🥀&quot;,&quot;🌺&quot;,&quot;🌷&quot;,&quot;🪷&quot;,&quot;🌸&quot;,&quot;💮&quot;,&quot;🏵️&quot;,&quot;🌻&quot;,&quot;🌼&quot;,&quot;🍂&quot;,&quot;🍁&quot;,&quot;🍄&quot;,&quot;🌾&quot;,&quot;🌱&quot;,&quot;🌿&quot;,&quot;🍃&quot;,&quot;☘️&quot;,&quot;🍀&quot;,&quot;🪴&quot;,&quot;🌵&quot;,&quot;🌴&quot;,&quot;🌳&quot;,&quot;🌲&quot;,&quot;🪹&quot;,&quot;🪺&quot;,&quot;🪵&quot;,&quot;🪨&quot;,&quot;⛰️&quot;,&quot;🏔️&quot;,&quot;❄️&quot;,&quot;☃️&quot;,&quot;⛄&quot;,&quot;🌊&quot;,&quot;🫧&quot;,&quot;🌬️&quot;,&quot;🌀&quot;,&quot;🌪️&quot;,&quot;🌁&quot;,&quot;🌫️&quot;,&quot;🌡️&quot;,&quot;🔥&quot;,&quot;🌋&quot;,&quot;🏜️&quot;,&quot;🏞️&quot;,&quot;🏖️&quot;,&quot;⛱️&quot;,&quot;🌅&quot;,&quot;🌄&quot;,&quot;☀️&quot;,&quot;🌤️&quot;,&quot;⛅&quot;,&quot;🌥️&quot;,&quot;🌦️&quot;,&quot;☁️&quot;,&quot;🌨️&quot;,&quot;⛈️&quot;,&quot;🌩️&quot;,&quot;🌧️&quot;,&quot;💧&quot;,&quot;☔&quot;,&quot;⚡&quot;,&quot;🌈&quot;,&quot;⭐&quot;,&quot;🌟&quot;,&quot;💫&quot;,&quot;✨&quot;,&quot;🌙&quot;,&quot;☄️&quot;,&quot;🌠&quot;,&quot;🌌&quot;,&quot;🪐&quot;,&quot;🌑&quot;,&quot;🌒&quot;,&quot;🌓&quot;,&quot;🌔&quot;,&quot;🌕&quot;,&quot;🌖&quot;,&quot;🌗&quot;,&quot;🌘&quot;,&quot;🌍&quot;,&quot;🌎&quot;,&quot;🌏&quot;,&quot;🙈&quot;,&quot;🙉&quot;,&quot;🙊&quot;,&quot;🐵&quot;,&quot;🦁&quot;,&quot;🐯&quot;,&quot;🐱&quot;,&quot;🐶&quot;,&quot;🐺&quot;,&quot;🐻&quot;,&quot;🐻‍❄️&quot;,&quot;🐨&quot;,&quot;🐼&quot;,&quot;🐹&quot;,&quot;🐭&quot;,&quot;🐰&quot;,&quot;🦊&quot;,&quot;🦝&quot;,&quot;🐮&quot;,&quot;🐷&quot;,&quot;🐽&quot;,&quot;🐗&quot;,&quot;🦓&quot;,&quot;🦄&quot;,&quot;🐴&quot;,&quot;🐸&quot;,&quot;🐲&quot;,&quot;🦎&quot;,&quot;🐉&quot;,&quot;🦖&quot;,&quot;🦕&quot;,&quot;🐢&quot;,&quot;🐊&quot;,&quot;🐍&quot;,&quot;🐁&quot;,&quot;🐀&quot;,&quot;🐇&quot;,&quot;🐈&quot;,&quot;🐈‍⬛&quot;,&quot;🐩&quot;,&quot;🐕&quot;,&quot;🦮&quot;,&quot;🐕‍🦺&quot;,&quot;🐅&quot;,&quot;🐆&quot;,&quot;🐎&quot;,&quot;🐖&quot;,&quot;🐄&quot;,&quot;🐂&quot;,&quot;🐃&quot;,&quot;🦬&quot;,&quot;🐏&quot;,&quot;🐑&quot;,&quot;🐐&quot;,&quot;🦌&quot;,&quot;🦙&quot;,&quot;🦥&quot;,&quot;🦘&quot;,&quot;🐘&quot;,&quot;🦣&quot;,&quot;🦏&quot;,&quot;🦛&quot;,&quot;🦒&quot;,&quot;🐒&quot;,&quot;🦍&quot;,&quot;🦧&quot;,&quot;🐪&quot;,&quot;🐫&quot;,&quot;🐿️&quot;,&quot;🦫&quot;,&quot;🦨&quot;,&quot;🦡&quot;,&quot;🦔&quot;,&quot;🦦&quot;,&quot;🦇&quot;,&quot;🪶&quot;,&quot;🦅&quot;,&quot;🦉&quot;,&quot;🐓&quot;,&quot;🐔&quot;,&quot;🐣&quot;,&quot;🐤&quot;,&quot;🐥&quot;,&quot;🐦&quot;,&quot;🦜&quot;,&quot;🕊️&quot;,&quot;🦤&quot;,&quot;🦢&quot;,&quot;🦩&quot;,&quot;🦚&quot;,&quot;🦃&quot;,&quot;🦆&quot;,&quot;🐧&quot;,&quot;🦭&quot;,&quot;🦈&quot;,&quot;🐬&quot;,&quot;🐋&quot;,&quot;🐳&quot;,&quot;🐟&quot;,&quot;🐠&quot;,&quot;🐡&quot;,&quot;🦐&quot;,&quot;🦞&quot;,&quot;🦀&quot;,&quot;🦑&quot;,&quot;🐙&quot;,&quot;🦪&quot;,&quot;🪸&quot;,&quot;🦂&quot;,&quot;🕷️&quot;,&quot;🕸️&quot;,&quot;🐚&quot;,&quot;🐌&quot;,&quot;🐜&quot;,&quot;🦗&quot;,&quot;🪲&quot;,&quot;🦟&quot;,&quot;🪳&quot;,&quot;🪰&quot;,&quot;🐝&quot;,&quot;🐞&quot;,&quot;🦋&quot;,&quot;🐛&quot;,&quot;🪱&quot;,&quot;🦠&quot;,&quot;🐾&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-4" class="sr-only">
+                                                    Fruta
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[4.9rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🍓
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;🍓&quot;,&quot;🍒&quot;,&quot;🍎&quot;,&quot;🍉&quot;,&quot;🍑&quot;,&quot;🍊&quot;,&quot;🥭&quot;,&quot;🍍&quot;,&quot;🍌&quot;,&quot;🍋&quot;,&quot;🍈&quot;,&quot;🍏&quot;,&quot;🍐&quot;,&quot;🥝&quot;,&quot;🫒&quot;,&quot;🫐&quot;,&quot;🍇&quot;,&quot;🥥&quot;,&quot;🍅&quot;,&quot;🌶️&quot;,&quot;🥕&quot;,&quot;🍠&quot;,&quot;🧅&quot;,&quot;🌽&quot;,&quot;🥦&quot;,&quot;🥒&quot;,&quot;🥬&quot;,&quot;🫑&quot;,&quot;🥑&quot;,&quot;🍆&quot;,&quot;🧄&quot;,&quot;🥔&quot;,&quot;🫘&quot;,&quot;🌰&quot;,&quot;🥜&quot;,&quot;🍞&quot;,&quot;🫓&quot;,&quot;🥐&quot;,&quot;🥖&quot;,&quot;🥯&quot;,&quot;🧇&quot;,&quot;🥞&quot;,&quot;🍳&quot;,&quot;🥚&quot;,&quot;🧀&quot;,&quot;🥓&quot;,&quot;🥩&quot;,&quot;🍗&quot;,&quot;🍖&quot;,&quot;🍔&quot;,&quot;🌭&quot;,&quot;🥪&quot;,&quot;🥨&quot;,&quot;🍟&quot;,&quot;🍕&quot;,&quot;🫔&quot;,&quot;🌮&quot;,&quot;🌯&quot;,&quot;🥙&quot;,&quot;🧆&quot;,&quot;🥘&quot;,&quot;🍝&quot;,&quot;🥫&quot;,&quot;🫕&quot;,&quot;🥣&quot;,&quot;🥗&quot;,&quot;🍲&quot;,&quot;🍛&quot;,&quot;🍜&quot;,&quot;🦪&quot;,&quot;🦞&quot;,&quot;🍣&quot;,&quot;🍤&quot;,&quot;🥡&quot;,&quot;🍚&quot;,&quot;🍱&quot;,&quot;🥟&quot;,&quot;🍢&quot;,&quot;🍙&quot;,&quot;🍘&quot;,&quot;🍥&quot;,&quot;🍡&quot;,&quot;🥠&quot;,&quot;🥮&quot;,&quot;🍧&quot;,&quot;🍨&quot;,&quot;🍦&quot;,&quot;🥧&quot;,&quot;🍰&quot;,&quot;🍮&quot;,&quot;🎂&quot;,&quot;🧁&quot;,&quot;🍭&quot;,&quot;🍬&quot;,&quot;🍫&quot;,&quot;🍩&quot;,&quot;🍪&quot;,&quot;🍯&quot;,&quot;🧂&quot;,&quot;🧈&quot;,&quot;🍿&quot;,&quot;🧊&quot;,&quot;🫙&quot;,&quot;🥤&quot;,&quot;🧋&quot;,&quot;🧃&quot;,&quot;🥛&quot;,&quot;🍼&quot;,&quot;🍵&quot;,&quot;☕&quot;,&quot;🫖&quot;,&quot;🧉&quot;,&quot;🍺&quot;,&quot;🍻&quot;,&quot;🥂&quot;,&quot;🍾&quot;,&quot;🍷&quot;,&quot;🥃&quot;,&quot;🫗&quot;,&quot;🍸&quot;,&quot;🍹&quot;,&quot;🍶&quot;,&quot;🥢&quot;,&quot;🍴&quot;,&quot;🥄&quot;,&quot;🔪&quot;,&quot;🍽️&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-5" class="sr-only">
+                                                    Viaje
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[6.6rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🚒
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;🛑&quot;,&quot;🚧&quot;,&quot;🚨&quot;,&quot;⛽&quot;,&quot;🛢️&quot;,&quot;🧭&quot;,&quot;🛞&quot;,&quot;🛟&quot;,&quot;⚓&quot;,&quot;🚏&quot;,&quot;🚇&quot;,&quot;🚥&quot;,&quot;🚦&quot;,&quot;🛴&quot;,&quot;🦽&quot;,&quot;🦼&quot;,&quot;🩼&quot;,&quot;🚲&quot;,&quot;🛵&quot;,&quot;🏍️&quot;,&quot;🚙&quot;,&quot;🚗&quot;,&quot;🛻&quot;,&quot;🚐&quot;,&quot;🚚&quot;,&quot;🚛&quot;,&quot;🚜&quot;,&quot;🏎️&quot;,&quot;🚒&quot;,&quot;🚑&quot;,&quot;🚓&quot;,&quot;🚕&quot;,&quot;🛺&quot;,&quot;🚌&quot;,&quot;🚈&quot;,&quot;🚝&quot;,&quot;🚅&quot;,&quot;🚄&quot;,&quot;🚂&quot;,&quot;🚃&quot;,&quot;🚋&quot;,&quot;🚎&quot;,&quot;🚞&quot;,&quot;🚊&quot;,&quot;🚉&quot;,&quot;🚍&quot;,&quot;🚔&quot;,&quot;🚘&quot;,&quot;🚖&quot;,&quot;🚆&quot;,&quot;🚢&quot;,&quot;🛳️&quot;,&quot;🛥️&quot;,&quot;🚤&quot;,&quot;⛴️&quot;,&quot;⛵&quot;,&quot;🛶&quot;,&quot;🚟&quot;,&quot;🚠&quot;,&quot;🚡&quot;,&quot;🚁&quot;,&quot;🛸&quot;,&quot;🚀&quot;,&quot;✈️&quot;,&quot;🛫&quot;,&quot;🛬&quot;,&quot;🛩️&quot;,&quot;🛝&quot;,&quot;🎢&quot;,&quot;🎡&quot;,&quot;🎠&quot;,&quot;🎪&quot;,&quot;🗼&quot;,&quot;🗽&quot;,&quot;🗿&quot;,&quot;🗻&quot;,&quot;🏛️&quot;,&quot;💈&quot;,&quot;⛲&quot;,&quot;⛩️&quot;,&quot;🕍&quot;,&quot;🕌&quot;,&quot;🕋&quot;,&quot;🛕&quot;,&quot;⛪&quot;,&quot;💒&quot;,&quot;🏩&quot;,&quot;🏯&quot;,&quot;🏰&quot;,&quot;🏗️&quot;,&quot;🏢&quot;,&quot;🏭&quot;,&quot;🏬&quot;,&quot;🏪&quot;,&quot;🏟️&quot;,&quot;🏦&quot;,&quot;🏫&quot;,&quot;🏨&quot;,&quot;🏣&quot;,&quot;🏤&quot;,&quot;🏥&quot;,&quot;🏚️&quot;,&quot;🏠&quot;,&quot;🏡&quot;,&quot;🏘️&quot;,&quot;🛖&quot;,&quot;⛺&quot;,&quot;🏕️&quot;,&quot;🏙️&quot;,&quot;🌆&quot;,&quot;🌇&quot;,&quot;🌃&quot;,&quot;🌉&quot;,&quot;🌁&quot;,&quot;🛤️&quot;,&quot;🛣️&quot;,&quot;🏝️&quot;,&quot;🗾&quot;,&quot;🗺️&quot;,&quot;🌐&quot;,&quot;💺&quot;,&quot;🧳&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-6" class="sr-only">
+                                                    Actividades
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[8.4rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🎀
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;🎉&quot;,&quot;🎊&quot;,&quot;🎈&quot;,&quot;🎂&quot;,&quot;🎀&quot;,&quot;🎁&quot;,&quot;🎇&quot;,&quot;🎆&quot;,&quot;🧨&quot;,&quot;🧧&quot;,&quot;🪔&quot;,&quot;🪅&quot;,&quot;🪩&quot;,&quot;🎐&quot;,&quot;🎏&quot;,&quot;🎎&quot;,&quot;🎑&quot;,&quot;🎍&quot;,&quot;🎋&quot;,&quot;🎄&quot;,&quot;🎃&quot;,&quot;🎗️&quot;,&quot;🥇&quot;,&quot;🥈&quot;,&quot;🥉&quot;,&quot;🏅&quot;,&quot;🎖️&quot;,&quot;🏆&quot;,&quot;📢&quot;,&quot;⚽&quot;,&quot;⚾&quot;,&quot;🥎&quot;,&quot;🏀&quot;,&quot;🏐&quot;,&quot;🏈&quot;,&quot;🏉&quot;,&quot;🎾&quot;,&quot;🥅&quot;,&quot;🏸&quot;,&quot;🥍&quot;,&quot;🏏&quot;,&quot;🏑&quot;,&quot;🏒&quot;,&quot;🥌&quot;,&quot;🛷&quot;,&quot;🎿&quot;,&quot;⛸️&quot;,&quot;🛼&quot;,&quot;🩰&quot;,&quot;🛹&quot;,&quot;⛳&quot;,&quot;🎯&quot;,&quot;🏹&quot;,&quot;🥏&quot;,&quot;🪃&quot;,&quot;🪁&quot;,&quot;🎣&quot;,&quot;🤿&quot;,&quot;🩱&quot;,&quot;🎽&quot;,&quot;🥋&quot;,&quot;🥊&quot;,&quot;🎱&quot;,&quot;🏓&quot;,&quot;🎳&quot;,&quot;♟️&quot;,&quot;🪀&quot;,&quot;🧩&quot;,&quot;🎮&quot;,&quot;🕹️&quot;,&quot;👾&quot;,&quot;🔫&quot;,&quot;🎲&quot;,&quot;🎰&quot;,&quot;🎴&quot;,&quot;🀄&quot;,&quot;🃏&quot;,&quot;🪄&quot;,&quot;🎩&quot;,&quot;📷&quot;,&quot;📸&quot;,&quot;🖼️&quot;,&quot;🎨&quot;,&quot;🖌️&quot;,&quot;🖍️&quot;,&quot;🪡&quot;,&quot;🧵&quot;,&quot;🧶&quot;,&quot;🎹&quot;,&quot;🎷&quot;,&quot;🎺&quot;,&quot;🎸&quot;,&quot;🪕&quot;,&quot;🎻&quot;,&quot;🪘&quot;,&quot;🥁&quot;,&quot;🪗&quot;,&quot;🎤&quot;,&quot;🎧&quot;,&quot;🎚️&quot;,&quot;🎛️&quot;,&quot;🎙️&quot;,&quot;📻&quot;,&quot;📺&quot;,&quot;📼&quot;,&quot;📹&quot;,&quot;📽️&quot;,&quot;🎥&quot;,&quot;🎞️&quot;,&quot;🎬&quot;,&quot;🎭&quot;,&quot;🎫&quot;,&quot;🎟️&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-7" class="sr-only">
+                                                    Objetos
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[10.1rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🖨️
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;📱&quot;,&quot;☎️&quot;,&quot;📞&quot;,&quot;📟&quot;,&quot;📠&quot;,&quot;🔌&quot;,&quot;🔋&quot;,&quot;🪫&quot;,&quot;🖲️&quot;,&quot;💽&quot;,&quot;💾&quot;,&quot;💿&quot;,&quot;📀&quot;,&quot;🖥️&quot;,&quot;💻&quot;,&quot;⌨️&quot;,&quot;🖨️&quot;,&quot;🖱️&quot;,&quot;🪙&quot;,&quot;💸&quot;,&quot;💵&quot;,&quot;💴&quot;,&quot;💶&quot;,&quot;💷&quot;,&quot;💳&quot;,&quot;💰&quot;,&quot;🧾&quot;,&quot;🧮&quot;,&quot;⚖️&quot;,&quot;🛒&quot;,&quot;🛍️&quot;,&quot;🕯️&quot;,&quot;💡&quot;,&quot;🔦&quot;,&quot;🏮&quot;,&quot;🧱&quot;,&quot;🪟&quot;,&quot;🪞&quot;,&quot;🚪&quot;,&quot;🪑&quot;,&quot;🛏️&quot;,&quot;🛋️&quot;,&quot;🚿&quot;,&quot;🛁&quot;,&quot;🚽&quot;,&quot;🧻&quot;,&quot;🪠&quot;,&quot;🧸&quot;,&quot;🪆&quot;,&quot;🧷&quot;,&quot;🪢&quot;,&quot;🧹&quot;,&quot;🧴&quot;,&quot;🧽&quot;,&quot;🧼&quot;,&quot;🪥&quot;,&quot;🪒&quot;,&quot;🧺&quot;,&quot;🧦&quot;,&quot;🧤&quot;,&quot;🧣&quot;,&quot;👖&quot;,&quot;👕&quot;,&quot;🎽&quot;,&quot;👚&quot;,&quot;👔&quot;,&quot;👗&quot;,&quot;👘&quot;,&quot;🥻&quot;,&quot;🩱&quot;,&quot;👙&quot;,&quot;🩳&quot;,&quot;🩲&quot;,&quot;🧥&quot;,&quot;🥼&quot;,&quot;🦺&quot;,&quot;⛑️&quot;,&quot;🪖&quot;,&quot;🎓&quot;,&quot;🎩&quot;,&quot;👒&quot;,&quot;🧢&quot;,&quot;👑&quot;,&quot;🎒&quot;,&quot;👝&quot;,&quot;👛&quot;,&quot;👜&quot;,&quot;💼&quot;,&quot;🧳&quot;,&quot;☂️&quot;,&quot;🌂&quot;,&quot;💍&quot;,&quot;💎&quot;,&quot;💄&quot;,&quot;👠&quot;,&quot;👟&quot;,&quot;👞&quot;,&quot;🥿&quot;,&quot;🩴&quot;,&quot;👡&quot;,&quot;👢&quot;,&quot;🥾&quot;,&quot;👓&quot;,&quot;🕶️&quot;,&quot;🦯&quot;,&quot;🥽&quot;,&quot;⚗️&quot;,&quot;🧫&quot;,&quot;🧪&quot;,&quot;🌡️&quot;,&quot;🧬&quot;,&quot;💉&quot;,&quot;💊&quot;,&quot;🩹&quot;,&quot;🩺&quot;,&quot;🩻&quot;,&quot;🔭&quot;,&quot;🔬&quot;,&quot;📡&quot;,&quot;🛰️&quot;,&quot;🧯&quot;,&quot;🪓&quot;,&quot;🪜&quot;,&quot;🪣&quot;,&quot;🪝&quot;,&quot;🧲&quot;,&quot;🧰&quot;,&quot;🗜️&quot;,&quot;🔩&quot;,&quot;🪛&quot;,&quot;🪚&quot;,&quot;🔧&quot;,&quot;🔨&quot;,&quot;⚒️&quot;,&quot;🛠️&quot;,&quot;⛏️&quot;,&quot;⚙️&quot;,&quot;🔗&quot;,&quot;⛓️&quot;,&quot;📎&quot;,&quot;🖇️&quot;,&quot;📏&quot;,&quot;📐&quot;,&quot;✂️&quot;,&quot;📌&quot;,&quot;📍&quot;,&quot;🗑️&quot;,&quot;🖌️&quot;,&quot;🖍️&quot;,&quot;🖊️&quot;,&quot;🖋️&quot;,&quot;✒️&quot;,&quot;✏️&quot;,&quot;📝&quot;,&quot;📒&quot;,&quot;📔&quot;,&quot;📕&quot;,&quot;📓&quot;,&quot;📗&quot;,&quot;📘&quot;,&quot;📙&quot;,&quot;📚&quot;,&quot;📖&quot;,&quot;🔖&quot;,&quot;🗒️&quot;,&quot;📄&quot;,&quot;📃&quot;,&quot;📋&quot;,&quot;📇&quot;,&quot;📑&quot;,&quot;🗃️&quot;,&quot;🗄️&quot;,&quot;🗂️&quot;,&quot;📂&quot;,&quot;📁&quot;,&quot;📰&quot;,&quot;🗞️&quot;,&quot;📊&quot;,&quot;📈&quot;,&quot;📉&quot;,&quot;🪧&quot;,&quot;🪪&quot;,&quot;🏷️&quot;,&quot;📦&quot;,&quot;📫&quot;,&quot;📪&quot;,&quot;📬&quot;,&quot;📭&quot;,&quot;📮&quot;,&quot;✉️&quot;,&quot;📧&quot;,&quot;📩&quot;,&quot;📨&quot;,&quot;💌&quot;,&quot;📤&quot;,&quot;📥&quot;,&quot;🗳️&quot;,&quot;⏱️&quot;,&quot;🕛&quot;,&quot;🕧&quot;,&quot;🕐&quot;,&quot;🕜&quot;,&quot;🕑&quot;,&quot;🕝&quot;,&quot;🕒&quot;,&quot;🕞&quot;,&quot;🕓&quot;,&quot;🕟&quot;,&quot;🕔&quot;,&quot;🕠&quot;,&quot;🕕&quot;,&quot;🕡&quot;,&quot;🕖&quot;,&quot;🕢&quot;,&quot;🕗&quot;,&quot;🕣&quot;,&quot;🕘&quot;,&quot;🕤&quot;,&quot;🕙&quot;,&quot;🕥&quot;,&quot;🕚&quot;,&quot;🕦&quot;,&quot;⌛&quot;,&quot;⏳&quot;,&quot;🕰️&quot;,&quot;⌚&quot;,&quot;⏲️&quot;,&quot;⏰&quot;,&quot;🗓️&quot;,&quot;📅&quot;,&quot;📆&quot;,&quot;🛎️&quot;,&quot;🔔&quot;,&quot;📯&quot;,&quot;📢&quot;,&quot;📣&quot;,&quot;🔍&quot;,&quot;🔎&quot;,&quot;🔮&quot;,&quot;🧿&quot;,&quot;🪬&quot;,&quot;📿&quot;,&quot;🏺&quot;,&quot;⚱️&quot;,&quot;⚰️&quot;,&quot;🪦&quot;,&quot;🚬&quot;,&quot;💣&quot;,&quot;🪤&quot;,&quot;📜&quot;,&quot;⚔️&quot;,&quot;🗡️&quot;,&quot;🛡️&quot;,&quot;🗝️&quot;,&quot;🔑&quot;,&quot;🔐&quot;,&quot;🔏&quot;,&quot;🔒&quot;,&quot;🔓&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-8" class="sr-only">
+                                                    Simbolos
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[11.8rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🧡
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;❤️&quot;,&quot;🧡&quot;,&quot;💛&quot;,&quot;💚&quot;,&quot;💙&quot;,&quot;💜&quot;,&quot;🤎&quot;,&quot;🖤&quot;,&quot;🤍&quot;,&quot;🔴&quot;,&quot;🟠&quot;,&quot;🟡&quot;,&quot;🟢&quot;,&quot;🔵&quot;,&quot;🟣&quot;,&quot;🟤&quot;,&quot;⚫&quot;,&quot;⚪&quot;,&quot;🟥&quot;,&quot;🟧&quot;,&quot;🟨&quot;,&quot;🟩&quot;,&quot;🟦&quot;,&quot;🟪&quot;,&quot;🟫&quot;,&quot;⬛&quot;,&quot;⬜&quot;,&quot;♈&quot;,&quot;♉&quot;,&quot;♊&quot;,&quot;♋&quot;,&quot;♌&quot;,&quot;♍&quot;,&quot;♎&quot;,&quot;♏&quot;,&quot;♐&quot;,&quot;♑&quot;,&quot;♒&quot;,&quot;♓&quot;,&quot;⛎&quot;,&quot;♀️&quot;,&quot;♂️&quot;,&quot;⚧️&quot;,&quot;🔻&quot;,&quot;🔺&quot;,&quot;❕&quot;,&quot;❗&quot;,&quot;❔&quot;,&quot;❓&quot;,&quot;⁉️&quot;,&quot;‼️&quot;,&quot;⭕&quot;,&quot;❌&quot;,&quot;🚫&quot;,&quot;🚳&quot;,&quot;🚭&quot;,&quot;🚯&quot;,&quot;🚱&quot;,&quot;🚷&quot;,&quot;📵&quot;,&quot;🔞&quot;,&quot;🔕&quot;,&quot;🔇&quot;,&quot;🅰️&quot;,&quot;🆎&quot;,&quot;🅱️&quot;,&quot;🅾️&quot;,&quot;🆑&quot;,&quot;🆘&quot;,&quot;🛑&quot;,&quot;⛔&quot;,&quot;📛&quot;,&quot;♨️&quot;,&quot;🉐&quot;,&quot;㊙️&quot;,&quot;㊗️&quot;,&quot;🈴&quot;,&quot;🈵&quot;,&quot;🈹&quot;,&quot;🈲&quot;,&quot;🉑&quot;,&quot;🈶&quot;,&quot;🈚&quot;,&quot;🈸&quot;,&quot;🈺&quot;,&quot;🈷️&quot;,&quot;🔶&quot;,&quot;🔸&quot;,&quot;🔆&quot;,&quot;🔅&quot;,&quot;✴️&quot;,&quot;🆚&quot;,&quot;🎦&quot;,&quot;📶&quot;,&quot;🔁&quot;,&quot;🔂&quot;,&quot;🔀&quot;,&quot;▶️&quot;,&quot;⏩&quot;,&quot;⏭️&quot;,&quot;⏯️&quot;,&quot;◀️&quot;,&quot;⏪&quot;,&quot;⏮️&quot;,&quot;🔼&quot;,&quot;⏫&quot;,&quot;🔽&quot;,&quot;⏬&quot;,&quot;⏸️&quot;,&quot;⏹️&quot;,&quot;⏺️&quot;,&quot;⏏️&quot;,&quot;📴&quot;,&quot;📳&quot;,&quot;📲&quot;,&quot;🔈&quot;,&quot;🔉&quot;,&quot;🔊&quot;,&quot;🎼&quot;,&quot;🎵&quot;,&quot;🎶&quot;,&quot;☢️&quot;,&quot;☣️&quot;,&quot;⚠️&quot;,&quot;🚸&quot;,&quot;⚜️&quot;,&quot;🔱&quot;,&quot;〽️&quot;,&quot;🔰&quot;,&quot;✳️&quot;,&quot;❇️&quot;,&quot;♻️&quot;,&quot;💱&quot;,&quot;💲&quot;,&quot;💹&quot;,&quot;🈯&quot;,&quot;❎&quot;,&quot;✅&quot;,&quot;✔️&quot;,&quot;☑️&quot;,&quot;⬆️&quot;,&quot;↗️&quot;,&quot;➡️&quot;,&quot;↘️&quot;,&quot;⬇️&quot;,&quot;↙️&quot;,&quot;⬅️&quot;,&quot;↖️&quot;,&quot;↕️&quot;,&quot;↔️&quot;,&quot;↩️&quot;,&quot;↪️&quot;,&quot;⤴️&quot;,&quot;⤵️&quot;,&quot;🔃&quot;,&quot;🔄&quot;,&quot;🔙&quot;,&quot;🔛&quot;,&quot;🔝&quot;,&quot;🔚&quot;,&quot;🔜&quot;,&quot;🆕&quot;,&quot;🆓&quot;,&quot;🆙&quot;,&quot;🆗&quot;,&quot;🆒&quot;,&quot;🆖&quot;,&quot;ℹ️&quot;,&quot;🅿️&quot;,&quot;🈁&quot;,&quot;🈂️&quot;,&quot;🈳&quot;,&quot;🔣&quot;,&quot;🔤&quot;,&quot;🔠&quot;,&quot;🔡&quot;,&quot;🔢&quot;,&quot;#️⃣&quot;,&quot;*️⃣&quot;,&quot;0️⃣&quot;,&quot;1️⃣&quot;,&quot;2️⃣&quot;,&quot;3️⃣&quot;,&quot;4️⃣&quot;,&quot;5️⃣&quot;,&quot;6️⃣&quot;,&quot;7️⃣&quot;,&quot;8️⃣&quot;,&quot;9️⃣&quot;,&quot;🔟&quot;,&quot;💠&quot;,&quot;🔷&quot;,&quot;🔹&quot;,&quot;🌐&quot;,&quot;🏧&quot;,&quot;Ⓜ️&quot;,&quot;🚾&quot;,&quot;🚻&quot;,&quot;🚹&quot;,&quot;🚺&quot;,&quot;♿&quot;,&quot;🚼&quot;,&quot;🛗&quot;,&quot;🚮&quot;,&quot;🚰&quot;,&quot;🛂&quot;,&quot;🛃&quot;,&quot;🛄&quot;,&quot;🛅&quot;,&quot;💟&quot;,&quot;⚛️&quot;,&quot;🛐&quot;,&quot;🕉️&quot;,&quot;☸️&quot;,&quot;☮️&quot;,&quot;☯️&quot;,&quot;☪️&quot;,&quot;✝️&quot;,&quot;☦️&quot;,&quot;✡️&quot;,&quot;🔯&quot;,&quot;🕎&quot;,&quot;♾️&quot;,&quot;🆔&quot;,&quot;⚕️&quot;,&quot;✖️&quot;,&quot;➕&quot;,&quot;➖&quot;,&quot;➗&quot;,&quot;🟰&quot;,&quot;➰&quot;,&quot;➿&quot;,&quot;〰️&quot;,&quot;©️&quot;,&quot;®️&quot;,&quot;™️&quot;,&quot;♥️&quot;,&quot;♦️&quot;,&quot;♣️&quot;,&quot;♠️&quot;,&quot;🔘&quot;,&quot;🔳&quot;,&quot;◼️&quot;,&quot;◾&quot;,&quot;▪️&quot;,&quot;🔲&quot;,&quot;◻️&quot;,&quot;◽&quot;,&quot;▫️&quot;,&quot;💭&quot;,&quot;🗯️&quot;,&quot;💬&quot;,&quot;🗨️&quot;,&quot;👁️‍🗨️&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center absolute md:relative">
+                                            <div x-data="{ open: false }">
+                                                <label id="listbox-label-9" class="sr-only">
+                                                    Banderas
+                                                </label>
+                                                <div class="relative">
+                                                    <button type="button" @click="open = true"
+                                                            class="relative left-[13.5rem] md:left-0 -m-2.5 w-10 h-10 rounded-full flex items-center justify-center text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-200"
+                                                            :aria-expanded="open" aria-labelledby="listbox-label">
+                                                        <div class="flex items-center justify-center">
+                                                            <div>
+                                                                🏁
+                                                                <div class="sr-only">
+                                                                    Agrega tu emoji
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                    <ul x-show="open" x-transition:leave="transition ease-in duration-100"
+                                                        x-transition:leave-start="opacity-100"
+                                                        x-transition:leave-end="opacity-0"
+                                                        class="absolute z-10 -mt-[26.5rem] w-80 left-0 ml-0 md:left-auto md:-ml-6 bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-50 shadow rounded-lg py-3 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:ml-auto sm:w-64 sm:text-sm grid grid-cols-9 overflow-x-hidden overflow-y-auto gap-1 h-96 font-emoji"
+                                                        @click.away="open = false"
+                                                        tabindex="-1" role="listbox" aria-labelledby="listbox-label"
+                                                        x-data="{emojis:[&quot;🏁&quot;,&quot;🚩&quot;,&quot;🎌&quot;,&quot;🏴&quot;,&quot;🏳️&quot;,&quot;🏳️‍🌈&quot;,&quot;🏳️‍⚧️&quot;,&quot;🏴‍☠️&quot;,&quot;🇦🇨&quot;,&quot;🇦🇩&quot;,&quot;🇦🇪&quot;,&quot;🇦🇫&quot;,&quot;🇦🇬&quot;,&quot;🇦🇮&quot;,&quot;🇦🇱&quot;,&quot;🇦🇲&quot;,&quot;🇦🇴&quot;,&quot;🇦🇶&quot;,&quot;🇦🇷&quot;,&quot;🇦🇸&quot;,&quot;🇦🇹&quot;,&quot;🇦🇺&quot;,&quot;🇦🇼&quot;,&quot;🇦🇽&quot;,&quot;🇦🇿&quot;,&quot;🇧🇦&quot;,&quot;🇧🇧&quot;,&quot;🇧🇩&quot;,&quot;🇧🇪&quot;,&quot;🇧🇫&quot;,&quot;🇧🇬&quot;,&quot;🇧🇭&quot;,&quot;🇧🇮&quot;,&quot;🇧🇯&quot;,&quot;🇧🇱&quot;,&quot;🇧🇲&quot;,&quot;🇧🇳&quot;,&quot;🇧🇴&quot;,&quot;🇧🇶&quot;,&quot;🇧🇷&quot;,&quot;🇧🇸&quot;,&quot;🇧🇹&quot;,&quot;🇧🇻&quot;,&quot;🇧🇼&quot;,&quot;🇧🇾&quot;,&quot;🇧🇿&quot;,&quot;🇨🇦&quot;,&quot;🇨🇨&quot;,&quot;🇨🇩&quot;,&quot;🇨🇫&quot;,&quot;🇨🇬&quot;,&quot;🇨🇭&quot;,&quot;🇨🇮&quot;,&quot;🇨🇰&quot;,&quot;🇨🇱&quot;,&quot;🇨🇲&quot;,&quot;🇨🇳&quot;,&quot;🇨🇴&quot;,&quot;🇨🇵&quot;,&quot;🇨🇷&quot;,&quot;🇨🇺&quot;,&quot;🇨🇻&quot;,&quot;🇨🇼&quot;,&quot;🇨🇽&quot;,&quot;🇨🇾&quot;,&quot;🇨🇿&quot;,&quot;🇩🇪&quot;,&quot;🇩🇬&quot;,&quot;🇩🇯&quot;,&quot;🇩🇰&quot;,&quot;🇩🇲&quot;,&quot;🇩🇴&quot;,&quot;🇩🇿&quot;,&quot;🇪🇦&quot;,&quot;🇪🇨&quot;,&quot;🇪🇪&quot;,&quot;🇪🇬&quot;,&quot;🇪🇭&quot;,&quot;🇪🇷&quot;,&quot;🇪🇸&quot;,&quot;🇪🇹&quot;,&quot;🇪🇺&quot;,&quot;🇫🇮&quot;,&quot;🇫🇯&quot;,&quot;🇫🇰&quot;,&quot;🇫🇲&quot;,&quot;🇫🇴&quot;,&quot;🇫🇷&quot;,&quot;🇬🇦&quot;,&quot;🇬🇧&quot;,&quot;🇬🇩&quot;,&quot;🇬🇪&quot;,&quot;🇬🇫&quot;,&quot;🇬🇬&quot;,&quot;🇬🇭&quot;,&quot;🇬🇮&quot;,&quot;🇬🇱&quot;,&quot;🇬🇲&quot;,&quot;🇬🇳&quot;,&quot;🇬🇵&quot;,&quot;🇬🇶&quot;,&quot;🇬🇷&quot;,&quot;🇬🇸&quot;,&quot;🇬🇹&quot;,&quot;🇬🇺&quot;,&quot;🇬🇼&quot;,&quot;🇬🇾&quot;,&quot;🇭🇰&quot;,&quot;🇭🇲&quot;,&quot;🇭🇳&quot;,&quot;🇭🇷&quot;,&quot;🇭🇹&quot;,&quot;🇭🇺&quot;,&quot;🇮🇨&quot;,&quot;🇮🇩&quot;,&quot;🇮🇪&quot;,&quot;🇮🇱&quot;,&quot;🇮🇲&quot;,&quot;🇮🇳&quot;,&quot;🇮🇴&quot;,&quot;🇮🇶&quot;,&quot;🇮🇷&quot;,&quot;🇮🇸&quot;,&quot;🇮🇹&quot;,&quot;🇯🇪&quot;,&quot;🇯🇲&quot;,&quot;🇯🇴&quot;,&quot;🇯🇵&quot;,&quot;🇰🇪&quot;,&quot;🇰🇬&quot;,&quot;🇰🇭&quot;,&quot;🇰🇮&quot;,&quot;🇰🇲&quot;,&quot;🇰🇳&quot;,&quot;🇰🇵&quot;,&quot;🇰🇷&quot;,&quot;🇰🇼&quot;,&quot;🇰🇾&quot;,&quot;🇰🇿&quot;,&quot;🇱🇦&quot;,&quot;🇱🇧&quot;,&quot;🇱🇨&quot;,&quot;🇱🇮&quot;,&quot;🇱🇰&quot;,&quot;🇱🇷&quot;,&quot;🇱🇸&quot;,&quot;🇱🇹&quot;,&quot;🇱🇺&quot;,&quot;🇱🇻&quot;,&quot;🇱🇾&quot;,&quot;🇲🇦&quot;,&quot;🇲🇨&quot;,&quot;🇲🇩&quot;,&quot;🇲🇪&quot;,&quot;🇲🇫&quot;,&quot;🇲🇬&quot;,&quot;🇲🇭&quot;,&quot;🇲🇰&quot;,&quot;🇲🇱&quot;,&quot;🇲🇲&quot;,&quot;🇲🇳&quot;,&quot;🇲🇴&quot;,&quot;🇲🇵&quot;,&quot;🇲🇶&quot;,&quot;🇲🇷&quot;,&quot;🇲🇸&quot;,&quot;🇲🇹&quot;,&quot;🇲🇺&quot;,&quot;🇲🇻&quot;,&quot;🇲🇼&quot;,&quot;🇲🇽&quot;,&quot;🇲🇾&quot;,&quot;🇲🇿&quot;,&quot;🇳🇦&quot;,&quot;🇳🇨&quot;,&quot;🇳🇪&quot;,&quot;🇳🇫&quot;,&quot;🇳🇬&quot;,&quot;🇳🇮&quot;,&quot;🇳🇱&quot;,&quot;🇳🇴&quot;,&quot;🇳🇵&quot;,&quot;🇳🇷&quot;,&quot;🇳🇺&quot;,&quot;🇳🇿&quot;,&quot;🇴🇲&quot;,&quot;🇵🇦&quot;,&quot;🇵🇪&quot;,&quot;🇵🇫&quot;,&quot;🇵🇬&quot;,&quot;🇵🇭&quot;,&quot;🇵🇰&quot;,&quot;🇵🇱&quot;,&quot;🇵🇲&quot;,&quot;🇵🇳&quot;,&quot;🇵🇷&quot;,&quot;🇵🇸&quot;,&quot;🇵🇹&quot;,&quot;🇵🇼&quot;,&quot;🇵🇾&quot;,&quot;🇶🇦&quot;,&quot;🇷🇪&quot;,&quot;🇷🇴&quot;,&quot;🇷🇸&quot;,&quot;🇷🇺&quot;,&quot;🇷🇼&quot;,&quot;🇸🇦&quot;,&quot;🇸🇧&quot;,&quot;🇸🇨&quot;,&quot;🇸🇩&quot;,&quot;🇸🇪&quot;,&quot;🇸🇬&quot;,&quot;🇸🇭&quot;,&quot;🇸🇮&quot;,&quot;🇸🇯&quot;,&quot;🇸🇰&quot;,&quot;🇸🇱&quot;,&quot;🇸🇲&quot;,&quot;🇸🇳&quot;,&quot;🇸🇴&quot;,&quot;🇸🇷&quot;,&quot;🇸🇸&quot;,&quot;🇸🇹&quot;,&quot;🇸🇻&quot;,&quot;🇸🇽&quot;,&quot;🇸🇾&quot;,&quot;🇸🇿&quot;,&quot;🇹🇦&quot;,&quot;🇹🇨&quot;,&quot;🇹🇩&quot;,&quot;🇹🇫&quot;,&quot;🇹🇬&quot;,&quot;🇹🇭&quot;,&quot;🇹🇯&quot;,&quot;🇹🇰&quot;,&quot;🇹🇱&quot;,&quot;🇹🇲&quot;,&quot;🇹🇳&quot;,&quot;🇹🇴&quot;,&quot;🇹🇷&quot;,&quot;🇹🇹&quot;,&quot;🇹🇻&quot;,&quot;🇹🇼&quot;,&quot;🇹🇿&quot;,&quot;🇺🇦&quot;,&quot;🇺🇬&quot;,&quot;🇺🇲&quot;,&quot;🇺🇳&quot;,&quot;🇺🇸&quot;,&quot;🇺🇾&quot;,&quot;🇺🇿&quot;,&quot;🇻🇦&quot;,&quot;🇻🇨&quot;,&quot;🇻🇪&quot;,&quot;🇻🇬&quot;,&quot;🇻🇮&quot;,&quot;🇻🇳&quot;,&quot;🇻🇺&quot;,&quot;🇼🇫&quot;,&quot;🇼🇸&quot;,&quot;🇽🇰&quot;,&quot;🇾🇪&quot;,&quot;🇾🇹&quot;,&quot;🇿🇦&quot;,&quot;🇿🇲&quot;,&quot;🇿🇼&quot;,&quot;🏴󠁧󠁢󠁥󠁮󠁧󠁿&quot;,&quot;🏴󠁧󠁢󠁳󠁣󠁴󠁿&quot;,&quot;🏴󠁧󠁢󠁷󠁬󠁳󠁿&quot;]}"
+                                                        style="display: none;">
+                                                        <template x-for="emoji in emojis">
+                                                            <li x-text="emoji"
+                                                                class="p-0 h-6 text-center overflow-hidden cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                                @click="document.getElementById('comment').value += emoji">
+                                                            </li>
+                                                        </template>
+
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex-shrink-0 inline-flex gap-2">
+                                    <div class="btn-switch-theme mr-2">
+                                        <button type="button" id="btn-sun-theme"
+                                                class="hidden bg-gray-900 rounded-full p-2 shadow ring ring-gray-700">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                                 class="h-6 text-yellow-500">
+                                                <path fill-rule="evenodd"
+                                                      d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                                                      clip-rule="evenodd"/>
+                                            </svg>
+                                        </button>
+                                        <button type="button" id="btn-moon-theme"
+                                                class="bg-white rounded-full p-2 shadow ring ring-gray-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+                                                 class="h-6 text-gray-900">
+                                                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <button type="submit" id="btn-send"
+                                            class="hidden font-sans md:inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        Enviar
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js" defer></script>
+<script src="/public/js/components.js" defer></script>
+<script src="/public/js/app.js" defer></script>
+<script src="/public/js/custom.js" defer></script>
+</body>
+</html>

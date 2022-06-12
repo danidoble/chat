@@ -1,0 +1,10 @@
+@import "roboto.css";
+@import "noto_emoji.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*.font-emoji {*/
+/*    font-family: 'Noto Emoji', 'sans-serif';*/
+/*}*/
